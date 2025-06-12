@@ -34,9 +34,12 @@ def main():
 
     @bot.message_handler(func=lambda message: 'tiktok.com/' in message.text)
     def handle_tiktok(message):
-        # bot.reply_to(message, "🔄 Downloading...")
-        video_url = get_tiktok_video_url(message.text.strip())
-        bot.send_video(message.chat.id, video=video_url, reply_to_message_id=message.message_id)
+        try:
+            bot.send_chat_action(message.chat.id, 'upload_video')
+            video_url = get_tiktok_video_url(message.text.strip())
+            bot.send_video(message.chat.id, video=video_url, reply_to_message_id=message.message_id)
+        except Exception as e:
+            bot.reply_to(message, f"❌ Error: {str(e)}")
 
     bot.infinity_polling()
 
