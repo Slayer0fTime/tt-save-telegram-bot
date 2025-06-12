@@ -41,6 +41,10 @@ def main():
         except Exception as e:
             bot.reply_to(message, f"❌ Error: {str(e)}")
 
+    @bot.message_handler(func=lambda message: True)
+    def handle_other(message):
+        bot.reply_to(message, "This is not a valid TikTok video link")
+
     bot.infinity_polling()
 
 
