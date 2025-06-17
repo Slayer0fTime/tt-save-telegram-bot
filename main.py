@@ -1,45 +1,54 @@
-from telebot import TeleBot
-from telebot_token import TOKEN
+from dotenv import load_dotenv
+import telebot
 import requests
+import os
 
 
-def get_tiktok_video_url(tiktok_url: str) -> str:
+def get_tiktok_media(tiktok_url: str) -> dict:
     api_url = "https://tikwm.com/api/"
-    params = {
-        "url": tiktok_url
-    }
-
+    params = {"url": tiktok_url}
     response = requests.get(api_url, params=params)
+
     data = response.json()
+    if data.get("code") != 0:
+        raise Exception("API error: " + data.get("msg", "Unknown"))
 
-    if data.get("code") == 0:
-        return data["data"]["play"]
-    else:
-        raise Exception(data.get("msg", "Unknown error"))
+    media = data["data"]
+    if media.get('images'):
+        return {"type": "images", "urls": media["images"]}
+    return {"type": "video", "url": media["play"]}
 
 
-def main():
-    bot = TeleBot(TOKEN)
-
-    @bot.message_handler(commands=['test'])
-    def handle_test(message):
-        pass
+def main() -> None:
+    load_dotenv()
+    token = os.getenv("BOT_TOKEN")
+    bot = telebot.TeleBot(token)
 
     @bot.message_handler(commands=['start', 'help'])
     def handle_start_help(message):
-        start_message = f"Hi, {message.from_user.first_name}.\n" \
-                        "I can convert audio or video into a voice message.\n" \
-                        "Send audio or video.\n"
+        start_message = f"Hi, {message.from_user.first_name}.\n"
         bot.send_message(message.chat.id, start_message)
 
-    @bot.message_handler(func=lambda message: 'tiktok.com/' in message.text)
-    def handle_tiktok(message):
+    @bot.message_handler(func=lambda msg: "https://" in msg.text and "tiktok.com/" in msg.text)
+    def handle_tiktok_link(message) -> None:
         try:
-            bot.send_chat_action(message.chat.id, 'upload_video')
-            video_url = get_tiktok_video_url(message.text.strip())
-            bot.send_video(message.chat.id, video=video_url, reply_to_message_id=message.message_id)
+            media = get_tiktok_media(message.text.strip())
+
+            if media["type"] == "video":
+                bot.send_chat_action(message.chat.id, 'upload_video')
+                bot.send_video(message.chat.id, media["url"], reply_to_message_id=message.message_id)
+            elif media["type"] == "images":
+                send_photo_gallery(message.chat.id, media["urls"], message.message_id)
         except Exception as e:
-            bot.reply_to(message, f"❌ Error: {str(e)}")
+            bot.reply_to(message, f"❌ Unexpected error:\n{e}")
+
+    def send_photo_gallery(chat_id: int, photos: str, reply_to: int) -> None:
+        CHUNK_SIZE = 10
+        for i in range(0, len(photos), CHUNK_SIZE):
+            chunk = photos[i:i + CHUNK_SIZE]
+            media_group = [telebot.types.InputMediaPhoto(url) for url in chunk]
+            bot.send_chat_action(chat_id, 'upload_photo', 10)
+            bot.send_media_group(chat_id, media_group, reply_to_message_id=reply_to)
 
     @bot.message_handler(func=lambda message: True)
     def handle_other(message):
