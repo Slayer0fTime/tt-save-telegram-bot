@@ -24,10 +24,24 @@ def main() -> None:
     token = os.getenv("BOT_TOKEN")
     bot = telebot.TeleBot(token)
 
-    @bot.message_handler(commands=['start', 'help'])
-    def handle_start_help(message):
-        start_message = f"Hi, {message.from_user.first_name}.\n"
-        bot.send_message(message.chat.id, start_message)
+    @bot.message_handler(commands=['start'])
+    def handle_start(message):
+        start_message = (
+            f"👋 Welcome, <b>{message.from_user.first_name}</b>\n"
+            "Send me a TikTok link and I’ll return the media\n\n"
+            "🔗 Just paste a TikTok URL here and I’ll do the rest"
+        )
+        bot.send_message(message.chat.id, start_message, parse_mode="HTML")
+
+    @bot.message_handler(commands=['help'])
+    def handle_help(message):
+        help_message = (
+            "📌 <b>How to use this bot:</b>\n\n"
+            "➊ Copy a link to any TikTok video or photo post\n"
+            "➋ Send it here\n"
+            "➌ Get the video or photo gallery with no watermark"
+        )
+        bot.send_message(message.chat.id, help_message, parse_mode="HTML")
 
     @bot.message_handler(func=lambda msg: "https://" in msg.text and "tiktok.com/" in msg.text)
     def handle_tiktok_link(message) -> None:
